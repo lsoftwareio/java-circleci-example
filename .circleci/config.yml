@@ -40,6 +40,22 @@ jobs:
           root: /tmp/worspace
           paths:
             - build/*
+
+  echo:
+    docker:
+      - image: circleci/openjdk:8-jdk
+    steps:
+      - attach_workspace:
+        at: /tmp/workspace
+      - run: echo "hello world!"
+
+workflows:
+  version: 2
+  first_workflow:
+    jobs:
+      - build
+      - echo
+
 #
 #  build-docker:
 #    docker:
