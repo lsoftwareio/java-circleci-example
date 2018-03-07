@@ -29,7 +29,19 @@ jobs:
               mkdir -p ~/junit/
               find . -type f -regex ".*/build/test-results/test/.*xml" -exec cp {} ~/junit/ \;
            when: always
+
        - store_test_results:
            path: ~/junit
+
        - store_artifacts:
            path: ~/junit
+
+       - run:
+         name: Build docker image
+         command: |
+           gradle docker
+
+       - run:
+         name: Output docker images
+         command: |
+           docker images
