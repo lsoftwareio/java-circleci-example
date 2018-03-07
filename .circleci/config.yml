@@ -21,7 +21,9 @@ jobs:
             - ~/.gradle
           key: v1-dependencies-{{ checksum "build.gradle" }}
 
-      - run: gradle build -x integrationTest
+      - run:
+          name: Build project
+          command: ./gradlew build -x integrationTest
 
       - run:
           name: Save test results
@@ -37,44 +39,49 @@ jobs:
           path: ~/junit
 
       - persist_to_workspace:
-          root: /tmp/worspace
+          root: ~/project
           paths:
-            - build/*
+            - build/libs/hello-webapp-*.jar
 
-  echo:
-    docker:
-      - image: circleci/openjdk:8-jdk
+  build-docker:
+    machine: true
     steps:
+      - checkout
       - attach_workspace:
-        at: /tmp/workspace
-      - run: echo "hello world!"
+          at: ~/project
+
+      - run:
+          name: Build docker image
+          command: docker build -t lsoftware/hello-webapp:1.0.0 . --build-arg JAR_FILE=build/libs/hello-webapp-*.jar
+
+      - run:
+          name: Start application container
+          command: docker run -d -p 8080:8080 --name hello-webapp lsoftware/hello-webapp:1.0.0
+
+      # Download and cache dependencies
+      - restore_cache:
+          keys:
+            - v1-dependencies-{{ checksum "build.gradle" }}
+            # fallback to using the latest cache if no exact match is found
+            - v1-dependencies-
+
+      - run: ./gradlew dependencies
+
+      # Save resolved dependencies on cache
+      - save_cache:
+          paths:
+            - ~/.gradle
+          key: v1-dependencies-{{ checksum "build.gradle" }}
+
+      - run:
+          name: Run integration tests
+          command: docker run -v $(pwd):/home/circleci/project --network container:hello-webapp -i openjdk:8-jdk-alpine /bin/sh -c "cd /home/circleci/project; ./gradlew integrationTest;"
 
 workflows:
   version: 2
-  first_workflow:
+  pipeline:
     jobs:
       - build
-      - echo
-
-#
-#  build-docker:
-#    docker:
-#      - image: "foo"
-#    steps:
-#      - checkout
-#      - attach_workspace:
-#        at: /tmp/workspace
-#
-#
-#
-#
-#
-#       - run:
-#           name: Build docker image
-#           command: |
-#             gradle docker
-#
-#       - run:
-#           name: Output docker images
-#           command: |
-#             docker images
+      - build-docker:
+          requires:
+            - build
