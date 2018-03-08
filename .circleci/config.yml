@@ -43,7 +43,7 @@ jobs:
           paths:
             - build/libs/hello-webapp-*.jar
 
-  build-docker:
+  integration-tests:
     machine: true
     steps:
       - checkout
@@ -58,21 +58,6 @@ jobs:
           name: Start application container
           command: docker run -d -p 8080:8080 --name hello-webapp lsoftware/hello-webapp:1.0.0
 
-      # Download and cache dependencies
-      - restore_cache:
-          keys:
-            - v1-dependencies-{{ checksum "build.gradle" }}
-            # fallback to using the latest cache if no exact match is found
-            - v1-dependencies-
-
-      - run: ./gradlew dependencies
-
-      # Save resolved dependencies on cache
-      - save_cache:
-          paths:
-            - ~/.gradle
-          key: v1-dependencies-{{ checksum "build.gradle" }}
-
       - run:
           name: Run integration tests
           command: docker run -v $(pwd):/home/circleci/project --network container:hello-webapp -i openjdk:8-jdk-alpine /bin/sh -c "cd /home/circleci/project; ./gradlew integrationTest;"
@@ -82,6 +67,6 @@ workflows:
   pipeline:
     jobs:
       - build
-      - build-docker:
+      - integration-tests:
           requires:
             - build
